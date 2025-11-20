@@ -4,6 +4,7 @@ import br.com.projeto3.chatbot.dto.WhatsAppMessageRequest;
 import br.com.projeto3.chatbot.dto.WhatsAppTemplateRequest;
 import br.com.projeto3.chatbot.service.WhatsAppService;
 import br.com.projeto3.chatbot.service.GamificationService;
+import br.com.projeto3.chatbot.service.ChatFlowService; 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,13 +21,19 @@ public class WhatsAppController {
 
     private final WhatsAppService whatsAppService;
     private final GamificationService gamificationService;
+    private final ChatFlowService chatFlowService; 
 
     @Value("${whatsapp.webhook.verify-token}")
     private String webhookVerifyToken;
 
-    public WhatsAppController(WhatsAppService whatsAppService, GamificationService gamificationService) {
+    public WhatsAppController(
+            WhatsAppService whatsAppService,
+            GamificationService gamificationService,
+            ChatFlowService chatFlowService 
+    ) {
         this.whatsAppService = whatsAppService;
         this.gamificationService = gamificationService;
+        this.chatFlowService = chatFlowService; 
     }
 
     @PostMapping("/send")
@@ -46,7 +53,13 @@ public class WhatsAppController {
             return ResponseEntity.badRequest().body("'to' and 'templateName' são obrigatórios");
         }
 
-        ResponseEntity<String> resp = whatsAppService.sendTemplateMessage(request.getTo(), request.getTemplateName(), request.getLanguageCode(), request.getComponents());
+        ResponseEntity<String> resp = whatsAppService.sendTemplateMessage(
+                request.getTo(),
+                request.getTemplateName(),
+                request.getLanguageCode(),
+                request.getComponents()
+        );
+
         return ResponseEntity.status(resp.getStatusCode()).body(resp.getBody());
     }
 
@@ -59,7 +72,9 @@ public class WhatsAppController {
 
         logger.info("Webhook verification request: mode={}, token={}", mode, token);
 
-        if ("subscribe" .equals(mode) && webhookVerifyToken != null && webhookVerifyToken.equals(token)) {
+        if ("subscribe".equals(mode)
+                && webhookVerifyToken != null
+                && webhookVerifyToken.equals(token)) {
             return ResponseEntity.ok(challenge);
         }
 
@@ -70,40 +85,48 @@ public class WhatsAppController {
     public ResponseEntity<String> receiveWebhook(@RequestBody Map<String, Object> payload) {
         logger.info("Received WhatsApp webhook payload: {}", payload);
 
-     
         try {
             var entry = (java.util.List<Object>) payload.get("entry");
             if (entry != null && !entry.isEmpty()) {
-                Object firstEntry = entry.get(0);
-                if (firstEntry instanceof java.util.Map) {
-                    var entryMap = (java.util.Map<String, Object>) firstEntry;
-                    var changes = (java.util.List<Object>) entryMap.get("changes");
-                    if (changes != null && !changes.isEmpty()) {
-                        var change = (java.util.Map<String, Object>) changes.get(0);
-                        var value = (java.util.Map<String, Object>) change.get("value");
-                        if (value != null) {
-                            var messages = (java.util.List<Object>) value.get("messages");
-                            if (messages != null && !messages.isEmpty()) {
-                                var message = (java.util.Map<String, Object>) messages.get(0);
-                                String from = (String) message.get("from");
-                     
-                                String text = null;
-                                if (message.get("text") instanceof java.util.Map) {
-                                    var textObj = (java.util.Map<String, Object>) message.get("text");
-                                    text = (String) textObj.get("body");
-                                }
 
-                                logger.info("Incoming message from {}: {}", from, text);
+                var entryMap = (Map<String, Object>) entry.get(0);
+                var changes = (java.util.List<Object>) entryMap.get("changes");
 
-                            
-                                if (from != null) {
-                                    gamificationService.awardPoints(from, 10);
+                if (changes != null && !changes.isEmpty()) {
+
+                    var change = (Map<String, Object>) changes.get(0);
+                    var value = (Map<String, Object>) change.get("value");
+
+                    if (value != null) {
+
+                        var messages = (java.util.List<Object>) value.get("messages");
+
+                        if (messages != null && !messages.isEmpty()) {
+
+                            var message = (Map<String, Object>) messages.get(0);
+                            String from = (String) message.get("from");
+
+                            String text = null;
+                            if (message.get("text") instanceof Map textObj) {
+                                text = (String) textObj.get("body");
+                            }
+
+                            logger.info("Incoming message from {}: {}", from, text);
+
+                            if (from != null) {
+                                gamificationService.awardPoints(from, 10);
+
+                                if (text != null && !text.isBlank()) {
+                                    String reply = chatFlowService.processMessage(from, text);
+
+                                    whatsAppService.sendTextMessage(from, reply);
                                 }
                             }
                         }
                     }
                 }
             }
+
         } catch (Exception e) {
             logger.warn("Failed to parse webhook payload: {}", e.getMessage());
         }
