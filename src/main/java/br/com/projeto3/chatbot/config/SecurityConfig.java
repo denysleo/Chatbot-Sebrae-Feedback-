@@ -11,6 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @EnableWebSecurity
@@ -27,26 +28,34 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
+
     @Bean
-   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+    // -------------------------------------------
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/").permitAll() 
+              
+                        .requestMatchers("/").permitAll()
+                        .requestMatchers("/api/admin/**").permitAll()
+                        
+             
                         .requestMatchers("/api/auth/cadastro-admin").permitAll()
                         .requestMatchers("/api/chatbot/**").permitAll()
                         .requestMatchers("/api/whatsapp/**").permitAll()
+                        
+          
                         .requestMatchers("/api/feedbacks/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
-    }
-
-    @Bean
-    public org.springframework.web.client.RestTemplate restTemplate() {
-        return new org.springframework.web.client.RestTemplate();
     }
 }
