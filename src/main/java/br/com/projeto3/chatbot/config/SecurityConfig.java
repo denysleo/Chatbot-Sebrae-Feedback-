@@ -28,12 +28,10 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-    // -------------------------------------------
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -42,17 +40,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-              
+                       
                         .requestMatchers("/").permitAll()
-                        .requestMatchers("/api/admin/**").permitAll()
-                        
-             
+                        .requestMatchers("/api/auth/login").permitAll()          
                         .requestMatchers("/api/auth/cadastro-admin").permitAll()
+                        .requestMatchers("/api/auth/profile/**").permitAll()    
+                        
+                      
+                        .requestMatchers("/api/admin/**").permitAll()
                         .requestMatchers("/api/chatbot/**").permitAll()
                         .requestMatchers("/api/whatsapp/**").permitAll()
                         
-          
-                        .requestMatchers("/api/feedbacks/**").hasAuthority("ADMIN")
+                   
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults());
 
