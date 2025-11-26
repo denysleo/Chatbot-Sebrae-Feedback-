@@ -17,27 +17,43 @@ public class AdminController {
         this.adminService = adminService;
     }
 
+    
 
     @PostMapping("/companies")
     public ResponseEntity<Company> createCompany(@RequestBody Company company) {
         return ResponseEntity.ok(adminService.createCompany(company));
     }
 
-
     @PostMapping("/companies/{companyId}/surveys")
     public ResponseEntity<Survey> createSurvey(@PathVariable Long companyId, @RequestBody Survey survey) {
         return ResponseEntity.ok(adminService.createSurvey(companyId, survey));
     }
-
 
     @PostMapping("/surveys/{surveyId}/questions")
     public ResponseEntity<Question> addQuestion(@PathVariable Long surveyId, @RequestBody Question question) {
         return ResponseEntity.ok(adminService.addQuestion(surveyId, question));
     }
 
+   
+
+    @GetMapping("/companies")
+    public ResponseEntity<List<Company>> listAllCompanies() {
+        return ResponseEntity.ok(adminService.listCompanies());
+    }
 
     @GetMapping("/companies/{companyId}/surveys")
     public ResponseEntity<List<Survey>> listSurveys(@PathVariable Long companyId) {
         return ResponseEntity.ok(adminService.listSurveysByCompany(companyId));
+    }
+
+    @GetMapping("/surveys/{surveyId}/questions")
+    public ResponseEntity<List<Question>> listQuestions(@PathVariable Long surveyId) {
+        return ResponseEntity.ok(adminService.listQuestionsBySurvey(surveyId));
+    }
+
+   
+    @GetMapping("/surveys/{surveyId}/answers")
+    public ResponseEntity<List<Answer>> listAnswers(@PathVariable Long surveyId) {
+        return ResponseEntity.ok(adminService.listAnswersBySurvey(surveyId));
     }
 }

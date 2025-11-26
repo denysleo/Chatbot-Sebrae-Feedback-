@@ -12,14 +12,19 @@ public class AdminService {
     private final CompanyRepository companyRepository;
     private final SurveyRepository surveyRepository;
     private final QuestionRepository questionRepository;
+    private final AnswerRepository answerRepository; 
 
-    public AdminService(CompanyRepository companyRepository, SurveyRepository surveyRepository, QuestionRepository questionRepository) {
+    public AdminService(CompanyRepository companyRepository, 
+                        SurveyRepository surveyRepository, 
+                        QuestionRepository questionRepository,
+                        AnswerRepository answerRepository) { 
         this.companyRepository = companyRepository;
         this.surveyRepository = surveyRepository;
         this.questionRepository = questionRepository;
+        this.answerRepository = answerRepository;
     }
 
-    
+ 
     public Company createCompany(Company company) {
         return companyRepository.save(company);
     }
@@ -40,7 +45,7 @@ public class AdminService {
         return surveyRepository.findByCompanyId(companyId);
     }
 
-
+   
     public Question addQuestion(Long surveyId, Question question) {
         Survey survey = surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new RuntimeException("Pesquisa não encontrada"));
@@ -50,5 +55,11 @@ public class AdminService {
     
     public List<Question> listQuestionsBySurvey(Long surveyId) {
         return questionRepository.findBySurveyId(surveyId);
+    }
+
+  
+    public List<Answer> listAnswersBySurvey(Long surveyId) {
+        
+        return answerRepository.findByQuestionSurveyId(surveyId);
     }
 }
