@@ -19,7 +19,7 @@ public class AdminService {
         this.questionRepository = questionRepository;
     }
 
-    // --- EMPRESA ---
+    
     public Company createCompany(Company company) {
         return companyRepository.save(company);
     }
