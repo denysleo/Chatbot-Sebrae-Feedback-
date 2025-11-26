@@ -1,35 +1,38 @@
 package br.com.projeto3.chatbot.service;
 
+import br.com.projeto3.chatbot.model.*;
+import br.com.projeto3.chatbot.repository.*;
 import org.springframework.stereotype.Service;
-import java.util.*;
-import java.util.stream.Collectors;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ChatFlowService {
 
     private final ChatStateManager stateManager;
     private final MessageRouter router;
-    private final WhatsAppService whatsAppService;           
-    private final GamificationService gamificationService;  
-
-    private final Map<String, Integer> fakeRank = new HashMap<>();
-    private final Map<String, String> fakeMedals = new HashMap<>();
+    private final SurveyRepository surveyRepository;
+    private final QuestionRepository questionRepository;
+    private final AnswerRepository answerRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final GamificationService gamificationService;
 
     public ChatFlowService(ChatStateManager stateManager,
                            MessageRouter router,
-                           WhatsAppService whatsAppService,
+                           SurveyRepository surveyRepository,
+                           QuestionRepository questionRepository,
+                           AnswerRepository answerRepository,
+                           UsuarioRepository usuarioRepository,
                            GamificationService gamificationService) {
         this.stateManager = stateManager;
         this.router = router;
-        this.whatsAppService = whatsAppService;
+        this.surveyRepository = surveyRepository;
+        this.questionRepository = questionRepository;
+        this.answerRepository = answerRepository;
+        this.usuarioRepository = usuarioRepository;
         this.gamificationService = gamificationService;
-
-        fakeRank.put("5511999990001", 320);
-        fakeRank.put("5511888887777", 240);
-        fakeRank.put("5511777771234", 150);
-
-        fakeMedals.put("5511999990001", "🏅 PIONEIRO, 🥇 TOP");
-        fakeMedals.put("5511888887777", "🥈 ATIVO");
     }
 
     public String processMessage(String phone, String text) {
@@ -38,89 +41,107 @@ public class ChatFlowService {
         var session = stateManager.getSession(phone);
         var intent = router.detectIntent(text);
 
-        if (intent == MessageRouter.Intent.MENU) {
+       
+        if (session.state == ChatStateManager.State.NONE) {
+            if (intent == MessageRouter.Intent.MENU) return menuText();
+            if (intent == MessageRouter.Intent.RANKING) return "🏆 Ranking em breve!";
+            if (intent == MessageRouter.Intent.MEDALS) return "🏅 Medalhas em breve!";
+            
+           
+            if (intent == MessageRouter.Intent.GREETING) {
+                return "Olá! 👋 Temos uma nova pesquisa disponível. Topa participar? Responda SIM.";
+            }
+            if (intent == MessageRouter.Intent.YES) {
+                return startSurvey(session, phone);
+            }
+            if (intent == MessageRouter.Intent.NO) {
+                return "Tudo bem! Quando quiser, chame de novo. 😊";
+            }
+            return "Não entendi. Digite MENU para ver as opções.";
+        }
+
+       
+        if (session.state == ChatStateManager.State.IN_SURVEY) {
+            return handleSurveyAnswer(session, phone, text);
+        }
+
+        return "Erro interno. Digite MENU.";
+    }
+
+    private String startSurvey(ChatStateManager.UserSession session, String phone) {
+        
+        List<Survey> surveys = surveyRepository.findAll();
+        if (surveys.isEmpty()) {
+            return "Ops! Não há pesquisas ativas no momento. Tente mais tarde.";
+        }
+        
+        Survey survey = surveys.get(0); 
+        List<Question> questions = questionRepository.findBySurveyId(survey.getId());
+
+        if (questions.isEmpty()) {
+            return "Esta pesquisa ainda não tem perguntas cadastradas. Desculpe!";
+        }
+
+        
+        session.state = ChatStateManager.State.IN_SURVEY;
+        session.currentSurveyId = survey.getId();
+        session.currentQuestionIndex = 0;
+        session.accumulatedPoints = 0;
+
+       
+        return "Iniciando a pesquisa: *" + survey.getTitle() + "*\n\n" + 
+               "1️⃣ " + questions.get(0).getText();
+    }
+
+    private String handleSurveyAnswer(ChatStateManager.UserSession session, String phone, String text) {
+      
+        List<Question> questions = questionRepository.findBySurveyId(session.currentSurveyId);
+        
+        if (session.currentQuestionIndex >= questions.size()) {
             session.state = ChatStateManager.State.NONE;
-            return menuText();
-        }
-        if (intent == MessageRouter.Intent.RANKING) {
-            return gerarRanking();
-        }
-        if (intent == MessageRouter.Intent.MEDALS) {
-            return medalsFor(phone);
+            return "Pesquisa já finalizada. Digite MENU.";
         }
 
-        switch (session.state) {
-            case NONE:
-                return handleNoneState(session, intent, text);
-            case AGUARDANDO_Q1:
-                return handleQ1(session, text);
-            case AGUARDANDO_Q2:
-                return handleQ2(session, text);
-            case AGUARDANDO_Q3:
-                return handleQ3(session, text);
-            default:
-                session.state = ChatStateManager.State.NONE;
-                return "Erro interno — digite MENU para começar novamente.";
+        Question answeredQuestion = questions.get(session.currentQuestionIndex);
+
+       
+        saveAnswer(phone, answeredQuestion, text);
+
+        
+        int points = 10;
+        gamificationService.awardPoints(phone, points);
+        session.accumulatedPoints += points;
+
+      
+        session.currentQuestionIndex++;
+
+       
+        if (session.currentQuestionIndex < questions.size()) {
+            Question nextQuestion = questions.get(session.currentQuestionIndex);
+            return "✅ Registrado!\n\n" + 
+                   (session.currentQuestionIndex + 1) + "️⃣ " + nextQuestion.getText();
+        } else {
+        
+            session.state = ChatStateManager.State.NONE;
+            return "🎉 Pesquisa concluída! Muito obrigado.\n" +
+                   "Você ganhou um total de " + session.accumulatedPoints + " pontos nesta sessão.";
         }
     }
 
-    private String handleNoneState(ChatStateManager.UserSession session, MessageRouter.Intent intent, String text) {
-        if (intent == MessageRouter.Intent.GREETING) {
-            return "Olá! 👋 Quer participar de uma pesquisa rápida? Responda SIM ou NÃO.";
+    private void saveAnswer(String phone, Question question, String text) {
+        try {
+            Answer answer = new Answer();
+            answer.setResponseText(text);
+            answer.setRespondedAt(LocalDateTime.now());
+            answer.setQuestion(question);
+
+   
+            usuarioRepository.findByPhoneNumber(phone).ifPresent(answer::setUser);
+
+            answerRepository.save(answer);
+        } catch (Exception e) {
+            System.err.println("Erro ao salvar resposta: " + e.getMessage());
         }
-        if (intent == MessageRouter.Intent.YES) {
-            session.state = ChatStateManager.State.AGUARDANDO_Q1;
-            return pergunta1();
-        }
-        if (intent == MessageRouter.Intent.NO) {
-            return "Tudo bem — quando quiser, chame-me novamente 😊";
-        }
-        return "Não entendi. Digite MENU para ver as opções ou SIM para iniciar uma pesquisa.";
-    }
-
-    private String handleQ1(ChatStateManager.UserSession session, String text) {
-        if (!text.matches("^[1-5]$")) {
-            return "Envie uma nota entre 1 e 5 (onde 5 é o melhor).";
-        }
-        session.q1 = Integer.parseInt(text);
-        session.state = ChatStateManager.State.AGUARDANDO_Q2;
-
-        safeAwardPoints(session, 10);
-
-        return pergunta2();
-    }
-
-    private String handleQ2(ChatStateManager.UserSession session, String text) {
-        session.q2 = text.trim();
-        session.state = ChatStateManager.State.AGUARDANDO_Q3;
-        safeAwardPoints(session, 5);
-        return pergunta3();
-    }
-
-    private String handleQ3(ChatStateManager.UserSession session, String text) {
-        session.q3 = text.trim();
-        session.state = ChatStateManager.State.NONE;
-
-        safeAwardPoints(session, 10);
-
-        String summary = String.format("Obrigado! Respostas: nota=%d; motivo=%s; sugestão=%s",
-                session.q1, defaultIfNull(session.q2), defaultIfNull(session.q3));
-
-        fakeMedals.putIfAbsent("simulated:" + UUID.randomUUID().toString(), "🥉 Participante");
-
-        return "🎉 Obrigado por responder!\n" + summary + "\n\nVocê ganhou +25 XP. Digite MENU para outras opções.";
-    }
-
-    private String pergunta1() {
-        return "Pergunta 1/3 — De 1 a 5, como você avalia nosso serviço?";
-    }
-
-    private String pergunta2() {
-        return "Pergunta 2/3 — Pode dizer rapidamente o motivo da sua nota?";
-    }
-
-    private String pergunta3() {
-        return "Pergunta 3/3 — O que podemos melhorar?";
     }
 
     private String menuText() {
@@ -128,38 +149,7 @@ public class ChatFlowService {
                 📋 MENU
                 • digite SIM — iniciar pesquisa
                 • digite RANKING — ver ranking
-                • digite MEDALHAS — ver suas medalhas
-                • digite MENU — ver este menu
+                • digite MEDALHAS — ver medalhas
                 """;
-    }
-
-    private String gerarRanking() {
-        var entries = fakeRank.entrySet().stream()
-                .sorted(Map.Entry.<String,Integer>comparingByValue().reversed())
-                .collect(Collectors.toList());
-
-        StringBuilder sb = new StringBuilder("🏆 RANKING GERAL\n");
-        int pos = 1;
-        for (var e : entries) {
-            sb.append(String.format("%d. %s — %d pontos\n", pos++, e.getKey(), e.getValue()));
-        }
-        return sb.toString();
-    }
-
-    private String medalsFor(String phone) {
-        String m = fakeMedals.get(phone);
-        if (m == null) return "Você ainda não tem medalhas — participe mais pesquisas!";
-        return "🏅 Suas medalhas:\n" + m;
-    }
-
-    private void safeAwardPoints(ChatStateManager.UserSession session, int pts) {
-        try {
-            session.accumulatedPoints += pts;
-        } catch (Exception e) {
-        }
-    }
-
-    private String defaultIfNull(Object o) {
-        return o == null ? "-" : o.toString();
     }
 }

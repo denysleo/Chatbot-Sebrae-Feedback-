@@ -21,17 +21,17 @@ public class ChatStateManager {
 
     public static class UserSession {
         public State state = State.NONE;
-        public Integer q1 = null;
-        public String q2 = null;
-        public String q3 = null;
+        
+       
+        public Long currentSurveyId;     
+        public int currentQuestionIndex;
+        
         public int accumulatedPoints = 0;
         public Instant lastUpdate = Instant.now();
     }
 
     public enum State {
         NONE,
-        AGUARDANDO_Q1,
-        AGUARDANDO_Q2,
-        AGUARDANDO_Q3
+        IN_SURVEY 
     }
 }
