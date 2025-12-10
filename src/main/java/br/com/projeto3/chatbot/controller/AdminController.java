@@ -3,6 +3,7 @@ package br.com.projeto3.chatbot.controller;
 import br.com.projeto3.chatbot.model.*;
 import br.com.projeto3.chatbot.service.AdminService;
 import org.springframework.http.ResponseEntity;
+import br.com.projeto3.chatbot.service.AdminStatsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
