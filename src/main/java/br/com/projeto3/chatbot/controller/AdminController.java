@@ -12,9 +12,11 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminStatsService adminStatsService;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, AdminStatsService adminStatsService) {
         this.adminService = adminService;
+        this.adminStatsService = adminStatsService;
     }
 
     
@@ -55,5 +57,17 @@ public class AdminController {
     @GetMapping("/surveys/{surveyId}/answers")
     public ResponseEntity<List<Answer>> listAnswers(@PathVariable Long surveyId) {
         return ResponseEntity.ok(adminService.listAnswersBySurvey(surveyId));
+    }
+    
+    // Estatísticas agregadas de uma empresa
+    @GetMapping("/companies/{companyId}/stats")
+    public ResponseEntity<?> getCompanyStats(@PathVariable Long companyId) {
+        return ResponseEntity.ok(adminStatsService.getCompanyStats(companyId));
+    }
+
+    // Estatísticas detalhadas de uma pesquisa
+    @GetMapping("/surveys/{surveyId}/stats")
+    public ResponseEntity<?> getSurveyStats(@PathVariable Long surveyId) {
+        return ResponseEntity.ok(adminStatsService.getSurveyStats(surveyId));
     }
 }
