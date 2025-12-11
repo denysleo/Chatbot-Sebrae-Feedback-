@@ -1,12 +1,18 @@
 package br.com.projeto3.chatbot.controller;
 
+import br.com.projeto3.chatbot.dto.FeedbackDTO;
+import br.com.projeto3.chatbot.dto.QuestionUpdateDTO;
+import br.com.projeto3.chatbot.dto.SurveyUpdateDTO;
 import br.com.projeto3.chatbot.model.*;
+import br.com.projeto3.chatbot.repository.AnswerRepository;
 import br.com.projeto3.chatbot.service.AdminService;
-import org.springframework.http.ResponseEntity;
 import br.com.projeto3.chatbot.service.AdminStatsService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -14,13 +20,13 @@ public class AdminController {
 
     private final AdminService adminService;
     private final AdminStatsService adminStatsService;
+    private final AnswerRepository answerRepository;
 
-    public AdminController(AdminService adminService, AdminStatsService adminStatsService) {
+    public AdminController(AdminService adminService, AdminStatsService adminStatsService, AnswerRepository answerRepository) {
         this.adminService = adminService;
         this.adminStatsService = adminStatsService;
+        this.answerRepository = answerRepository;
     }
-
-    
 
     @PostMapping("/companies")
     public ResponseEntity<Company> createCompany(@RequestBody Company company) {
@@ -37,8 +43,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.addQuestion(surveyId, question));
     }
 
-   
-
     @GetMapping("/companies")
     public ResponseEntity<List<Company>> listAllCompanies() {
         return ResponseEntity.ok(adminService.listCompanies());
@@ -54,21 +58,80 @@ public class AdminController {
         return ResponseEntity.ok(adminService.listQuestionsBySurvey(surveyId));
     }
 
-   
     @GetMapping("/surveys/{surveyId}/answers")
     public ResponseEntity<List<Answer>> listAnswers(@PathVariable Long surveyId) {
         return ResponseEntity.ok(adminService.listAnswersBySurvey(surveyId));
     }
-    
-    // Estatísticas agregadas de uma empresa
+
     @GetMapping("/companies/{companyId}/stats")
     public ResponseEntity<?> getCompanyStats(@PathVariable Long companyId) {
         return ResponseEntity.ok(adminStatsService.getCompanyStats(companyId));
     }
 
-    // Estatísticas detalhadas de uma pesquisa
     @GetMapping("/surveys/{surveyId}/stats")
     public ResponseEntity<?> getSurveyStats(@PathVariable Long surveyId) {
         return ResponseEntity.ok(adminStatsService.getSurveyStats(surveyId));
+    }
+
+    @GetMapping("/surveys/{id}")
+    public ResponseEntity<Survey> getSurveyById(@PathVariable Long id) {
+        return adminService.findSurveyById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/surveys/{id}")
+    public ResponseEntity<Survey> updateSurvey(@PathVariable Long id, @RequestBody SurveyUpdateDTO dto) {
+        return ResponseEntity.ok(adminService.updateSurvey(id, dto));
+    }
+
+    @DeleteMapping("/surveys/{id}")
+    public ResponseEntity<Void> deleteSurvey(@PathVariable Long id) {
+        adminService.deleteSurvey(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/questions/{id}")
+    public ResponseEntity<Question> updateQuestion(@PathVariable Long id, @RequestBody QuestionUpdateDTO dto) {
+        return ResponseEntity.ok(adminService.updateQuestion(id, dto));
+    }
+
+    @DeleteMapping("/questions/{id}")
+    public ResponseEntity<Void> deleteQuestion(@PathVariable Long id) {
+        adminService.deleteQuestion(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/feedbacks")
+    public ResponseEntity<List<FeedbackDTO>> getFeedbacks(
+            @RequestParam(required = false, defaultValue = "ALL") String period,
+            @RequestParam(required = false, defaultValue = "NPS") String type
+    ) {
+        LocalDateTime startDate = LocalDateTime.of(1970, 1, 1, 0, 0);
+
+        if ("WEEK".equals(period)) startDate = LocalDateTime.now().minusWeeks(1);
+        else if ("MONTH".equals(period)) startDate = LocalDateTime.now().minusMonths(1);
+        else if ("YEAR".equals(period)) startDate = LocalDateTime.now().minusYears(1);
+
+        List<Answer> answers = answerRepository.findAnswersAfterDate(startDate);
+
+        List<FeedbackDTO> dtos = answers.stream().map(a -> {
+            int score = 0;
+            try {
+                score = Integer.parseInt(a.getResponseText().trim());
+            } catch (Exception e) {
+            }
+
+            return new FeedbackDTO(
+                    a.getUser() != null ? a.getUser().getNome() : "Anônimo",
+                    10,
+                    score,
+                    a.getResponseText(),
+                    "NPS",
+                    a.getRespondedAt()
+            );
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(dtos);
     }
 }
