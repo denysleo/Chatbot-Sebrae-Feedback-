@@ -15,52 +15,45 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // 1. Bean para criptografia de senha
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // 2. Bean de autenticação
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
             throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    // 3. O Bean que estava faltando e causava o erro do WhatsAppService
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
 
-    // 4. Configuração de Segurança + CORS
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Desabilita CSRF e Habilita CORS
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 .authorizeHttpRequests(auth -> auth
-                        // Libera tudo que é necessário
                         .requestMatchers(
-                            "/",
-                            "/api/auth/**",
-                            "/api/admin/**",
-                            "/api/ranking/**",  // Importante para a tela de Ranking
-                            "/api/chatbot/**",
-                            "/api/whatsapp/**",
-                            "/swagger-ui/**",
-                            "/v3/api-docs/**"
+                                "/",
+                                "/api/auth/**",
+                                "/api/admin/**",
+                                "/api/ranking/**",
+                                "/api/chatbot/**",
+                                "/api/whatsapp/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults());
@@ -68,12 +61,19 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 5. Configuração Explicita de CORS para o Next.js
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite o localhost:3000 (Front) acessar o localhost:8080 (Back)
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        
+        List<String> allowedOrigins = new ArrayList<>();
+        allowedOrigins.add("http://localhost:3000");
+        
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            allowedOrigins.add(frontendUrl);
+        }
+
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
