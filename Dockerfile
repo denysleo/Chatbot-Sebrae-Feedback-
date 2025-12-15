@@ -8,7 +8,7 @@ RUN mvn clean package -DskipTests
 
 
 FROM eclipse-temurin:21-jdk-alpine
-VOLUME /tmp
+#VOLUME /tmp
 
 
 COPY --from=build /app/target/*.jar /app.jar
