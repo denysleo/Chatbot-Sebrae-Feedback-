@@ -53,7 +53,11 @@ public class SecurityConfig {
                                 "/api/chatbot/**",
                                 "/api/whatsapp/**",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                               "/actuator/health",
+                                "/actuator/health/**",
+                                 "/actuator/info",
+                                "/actuator/info/**"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults());
