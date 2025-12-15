@@ -6,10 +6,7 @@ import br.com.projeto3.chatbot.dto.SurveyUpdateDTO;
 import br.com.projeto3.chatbot.model.*;
 import br.com.projeto3.chatbot.repository.AnswerRepository;
 import br.com.projeto3.chatbot.service.AdminService;
-<<<<<<< HEAD
 import br.com.projeto3.chatbot.service.AdminStatsService;
-=======
->>>>>>> 9aef59dd031bc495c4f18778d3289561d14eea7a
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +19,6 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     private final AdminService adminService;
-<<<<<<< HEAD
     private final AdminStatsService adminStatsService;
     private final AnswerRepository answerRepository;
 
@@ -30,11 +26,6 @@ public class AdminController {
         this.adminService = adminService;
         this.adminStatsService = adminStatsService;
         this.answerRepository = answerRepository;
-=======
-
-    public AdminController(AdminService adminService) {
-        this.adminService = adminService;
->>>>>>> 9aef59dd031bc495c4f18778d3289561d14eea7a
     }
 
     @PostMapping("/companies")
@@ -71,7 +62,6 @@ public class AdminController {
     public ResponseEntity<List<Answer>> listAnswers(@PathVariable Long surveyId) {
         return ResponseEntity.ok(adminService.listAnswersBySurvey(surveyId));
     }
-<<<<<<< HEAD
 
     @GetMapping("/companies/{companyId}/stats")
     public ResponseEntity<?> getCompanyStats(@PathVariable Long companyId) {
@@ -144,6 +134,4 @@ public class AdminController {
 
         return ResponseEntity.ok(dtos);
     }
-=======
->>>>>>> 9aef59dd031bc495c4f18778d3289561d14eea7a
 }
