@@ -1,10 +1,8 @@
 package br.com.projeto3.chatbot.repository;
 
-import br.com.projeto3.chatbot.dto.SurveyStatsDTO;
-import br.com.projeto3.chatbot.dto.QuestionStatsDTO;
-import br.com.projeto3.chatbot.dto.QuestionAnswerCountDTO;
 import br.com.projeto3.chatbot.model.Answer;
 import org.springframework.data.jpa.repository.JpaRepository;
+<<<<<<< HEAD
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,9 +11,18 @@ import java.util.List;
 
 public interface AnswerRepository extends JpaRepository<Answer, Long> {
 
+=======
+import java.util.List;
+
+public interface AnswerRepository extends JpaRepository<Answer, Long> {
+    
+  
+>>>>>>> 9aef59dd031bc495c4f18778d3289561d14eea7a
     List<Answer> findByUserId(Long userId);
 
+    
     List<Answer> findByQuestionSurveyId(Long surveyId);
+<<<<<<< HEAD
 
     @Query("SELECT a FROM Answer a WHERE a.respondedAt >= :startDate")
     List<Answer> findAnswersAfterDate(@Param("startDate") LocalDateTime startDate);
@@ -75,4 +82,6 @@ public interface AnswerRepository extends JpaRepository<Answer, Long> {
             WHERE c.id = :companyId
             """)
     Long countAnswersByCompany(@Param("companyId") Long companyId);
+=======
+>>>>>>> 9aef59dd031bc495c4f18778d3289561d14eea7a
 }
